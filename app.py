@@ -31,7 +31,7 @@ CORES = {
 }
 
 STATUS_FINALIZADOS = {"FINISHED", "AWARDED"}
-TEMPORADAS = [2026, 2025, 2024, 2023, 2022, 2021]
+TEMPORADAS = [2026, 2025, 2024]
 
 
 # =========================================================
@@ -112,29 +112,6 @@ def aplicar_estilo():
             border-radius: 12px;
             overflow: hidden;
         }}
-
-        
-/* Títulos e textos da barra lateral */
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3,
-[data-testid="stSidebar"] h4,
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] strong {
-    color: #FFFFFF !important;
-}
-
-/* Rótulos dos campos de filtro */
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
-    color: #F4F7FB !important;
-    opacity: 1 !important;
-}
-
-/* Texto auxiliar da barra lateral */
-[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
-    color: #A9B8CC !important;
-}
-
 
         div[data-baseweb="select"] > div,
         div[data-baseweb="input"] > div {{
