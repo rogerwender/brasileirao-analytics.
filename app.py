@@ -115,19 +115,42 @@ CHART_THEME = dict(
     ),
 )
 
+
 def configurar_eixos(fig):
+    fig.update_layout(
+        template="plotly_dark",
+        title_font=dict(
+            color="#FFFFFF",
+            size=20
+        ),
+        font=dict(
+            color="#FFFFFF",
+            size=13
+        ),
+        paper_bgcolor="#151F32",
+        plot_bgcolor="#151F32",
+        legend=dict(
+            font=dict(color="#FFFFFF")
+        ),
+        margin=dict(l=20, r=20, t=65, b=20),
+    )
+
     fig.update_xaxes(
-        gridcolor=BORDER,
-        zerolinecolor=BORDER,
-        linecolor=BORDER,
+        title_font=dict(color="#FFFFFF"),
+        tickfont=dict(color="#FFFFFF"),
+        gridcolor="#2A3850",
+        zerolinecolor="#2A3850"
     )
+
     fig.update_yaxes(
-        gridcolor=BORDER,
-        zerolinecolor=BORDER,
-        linecolor=BORDER,
+        title_font=dict(color="#FFFFFF"),
+        tickfont=dict(color="#FFFFFF"),
+        gridcolor="#2A3850",
+        zerolinecolor="#2A3850"
     )
-    fig.update_layout(**CHART_THEME)
+
     return fig
+
 
 def titulo_secao(titulo, descricao):
     st.markdown(
