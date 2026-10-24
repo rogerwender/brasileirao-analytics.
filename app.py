@@ -1,3 +1,4 @@
+import sqlite3
 import requests
 import pandas as pd
 import plotly.express as px
@@ -32,10 +33,69 @@ CORES = {
 
 STATUS_FINALIZADOS = {"FINISHED", "AWARDED"}
 TEMPORADAS = [2026, 2025, 2024]
+DB_FILE = "visitor_counter.db"
 
 
 # =========================================================
-# 2. ESTILO VISUAL
+# 2. BANCO DE DADOS: CONTADOR DE VISITAS PERSISTENTE (SQLite)
+# =========================================================
+
+def inicializar_banco():
+    """Cria a tabela no SQLite caso ela ainda não exista."""
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS estatisticas_visitas (
+                id INTEGER PRIMARY KEY,
+                total_visitas INTEGER DEFAULT 0,
+                visitantes_unicos INTEGER DEFAULT 0
+            )
+        """)
+        # Garante que a linha inicial (id=1) exista
+        cursor.execute("SELECT COUNT(*) FROM estatisticas_visitas")
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("INSERT INTO estatisticas_visitas (id, total_visitas, visitantes_unicos) VALUES (1, 0, 0)")
+        conn.commit()
+
+
+def registrar_e_obter_visitas():
+    """
+    Incrementa as visualizações e os visitantes únicos (caso seja uma nova sessão)
+    e retorna os valores atualizados do banco de dados SQLite.
+    """
+    inicializar_banco()
+    
+    # Verifica se o usuário já visitou durante esta sessão do navegador
+    e_novo_visitante = False
+    if "visitou_nesta_sessao" not in st.session_state:
+        st.session_state["visitou_nesta_sessao"] = True
+        e_novo_visitante = True
+
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        
+        # Incrementa visualizações totais da página
+        cursor.execute("UPDATE estatisticas_visitas SET total_visitas = total_visitas + 1 WHERE id = 1")
+        
+        # Se for um novo visitante (nova aba/navegador), incrementa visitantes únicos
+        if e_novo_visitante:
+            cursor.execute("UPDATE estatisticas_visitas SET visitantes_unicos = visitantes_unicos + 1 WHERE id = 1")
+            
+        conn.commit()
+
+        # Busca os números atualizados
+        cursor.execute("SELECT total_visitas, visitantes_unicos FROM estatisticas_visitas WHERE id = 1")
+        total_visitas, visitantes_unicos = cursor.fetchone()
+
+    return total_visitas, visitantes_unicos
+
+
+# Registra o acesso logo ao iniciar o script
+total_visitas, visitantes_unicos = registrar_e_obter_visitas()
+
+
+# =========================================================
+# 3. ESTILO VISUAL
 # =========================================================
 
 def aplicar_estilo():
@@ -71,7 +131,6 @@ def aplicar_estilo():
             padding-top: 1.4rem;
         }}
 
-        /* Garante que o título "Filtros" fique branco na barra lateral */
         [data-testid="stSidebar"] h3,
         [data-testid="stSidebar"] h3 span,
         [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3,
@@ -200,6 +259,15 @@ def aplicar_estilo():
             font-weight: 650;
         }}
 
+        .counter-box {{
+            background-color: #0D1728;
+            border: 1px solid {CORES["borda"]};
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 10px;
+            text-align: center;
+        }}
+
         hr {{
             border-color: {CORES["borda"]};
         }}
@@ -210,7 +278,7 @@ def aplicar_estilo():
 
 
 # =========================================================
-# 3. API E CARREGAMENTO DOS DADOS
+# 4. API E CARREGAMENTO DOS DADOS
 # =========================================================
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -288,7 +356,7 @@ def preparar_jogos_finalizados(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # =========================================================
-# 4. COMPONENTES REUTILIZÁVEIS
+# 5. COMPONENTES REUTILIZÁVEIS
 # =========================================================
 
 def titulo_secao(titulo: str, descricao: str = ""):
@@ -450,7 +518,7 @@ def criar_classificacao(jogos: pd.DataFrame) -> pd.DataFrame:
 
 
 # =========================================================
-# 5. ESTILO, NAVEGAÇÃO E FILTROS
+# 6. ESTILO, NAVEGAÇÃO E FILTROS
 # =========================================================
 
 aplicar_estilo()
@@ -486,6 +554,14 @@ st.sidebar.markdown(
     'às páginas e aos gráficos.</p>',
     unsafe_allow_html=True,
 )
+
+# Exibe o contador de acessos na Barra Lateral
+st.sidebar.divider()
+st.sidebar.markdown("### 👁️ Estatísticas do App")
+col_vis1, col_vis2 = st.sidebar.columns(2)
+col_vis1.metric("Acessos", total_visitas)
+col_vis2.metric("Únicos", visitantes_unicos)
+
 
 if not token:
     st.error(
@@ -534,7 +610,7 @@ if time_selecionado != "Todos os times":
 
 jogos = preparar_jogos_finalizados(df)
 
-# Cabeçalho do conteúdo: compacto para aproveitar a área visível.
+# Cabeçalho do conteúdo
 st.markdown(
     f"""
     <div class="hero">
@@ -551,7 +627,7 @@ st.markdown(
 
 
 # =========================================================
-# 6. PÁGINA: VISÃO GERAL
+# 7. PÁGINA: VISÃO GERAL
 # =========================================================
 
 if pagina == "Visão geral":
@@ -614,7 +690,7 @@ if pagina == "Visão geral":
 
 
 # =========================================================
-# 7. PÁGINA: GOLS
+# 8. PÁGINA: GOLS
 # =========================================================
 
 elif pagina == "Gols":
@@ -721,7 +797,7 @@ elif pagina == "Gols":
 
 
 # =========================================================
-# 8. PÁGINA: CLASSIFICAÇÃO
+# 9. PÁGINA: CLASSIFICAÇÃO
 # =========================================================
 
 elif pagina == "Classificação":
@@ -756,7 +832,7 @@ elif pagina == "Classificação":
 
 
 # =========================================================
-# 9. PÁGINA: PARTIDAS
+# 10. PÁGINA: PARTIDAS
 # =========================================================
 
 elif pagina == "Partidas":
@@ -809,11 +885,17 @@ elif pagina == "Partidas":
 
 
 # =========================================================
-# 10. RODAPÉ
+# 11. RODAPÉ COM INDICADOR DE VISITAS
 # =========================================================
 
 st.divider()
-st.caption(
-    "Fonte: football-data.org · Cache de 30 minutos. "
-    "Use “Atualizar dados” para solicitar uma nova consulta."
-)
+col_rodape1, col_rodape2 = st.columns([3, 1])
+
+with col_rodape1:
+    st.caption(
+        "Fonte: football-data.org · Cache de 30 minutos. "
+        "Use “Atualizar dados” para solicitar uma nova consulta."
+    )
+
+with col_rodape2:
+    st.caption(f"📊 Total de Acessos ao App: **{total_visitas}** (Visitantes Únicos: **{visitantes_unicos}**)")
