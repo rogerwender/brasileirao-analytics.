@@ -5,84 +5,150 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# --------------------------------------------------
-# CONFIGURAÇÃO VISUAL
-# --------------------------------------------------
+# ==================================================
+# CONFIGURAÇÃO
+# ==================================================
 st.set_page_config(
     page_title="Brasileirão Analytics",
     page_icon="⚽",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-FUNDO = "#0B1220"
-PAINEL = "#151F32"
-VERDE = "#00D4A0"
-AZUL = "#60A5FA"
-AMARELO = "#FBBF24"
-VERMELHO = "#FB7185"
-TEXTO = "#F1F5F9"
-CINZA = "#94A3B8"
+BG = "#0B1220"
+PANEL = "#151F32"
+BORDER = "#26354D"
+WHITE = "#FFFFFF"
+GREEN = "#00D4A0"
+BLUE = "#60A5FA"
+YELLOW = "#FBBF24"
+RED = "#FB7185"
+MUTED = "#B8C4D6"
 
 st.markdown(f"""
 <style>
     .stApp {{
-        background-color: {FUNDO};
-        color: {TEXTO};
+        background-color: {BG};
+        color: {WHITE};
     }}
+
     [data-testid="stSidebar"] {{
-        background-color: {PAINEL};
+        background-color: {PANEL};
+        border-right: 1px solid {BORDER};
     }}
-    h1, h2, h3 {{
-        color: {TEXTO} !important;
+
+    h1, h2, h3, h4,
+    [data-testid="stHeader"],
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricValue"] {{
+        color: {WHITE} !important;
     }}
-    div[data-testid="stMetric"] {{
-        background-color: {PAINEL};
-        border: 1px solid #26354D;
+
+    p, label, [data-testid="stCaptionContainer"] {{
+        color: {MUTED};
+    }}
+
+    [data-testid="stMetric"] {{
+        background: {PANEL};
+        border: 1px solid {BORDER};
         padding: 18px;
         border-radius: 12px;
     }}
-    div[data-testid="stMetricLabel"] {{
-        color: {CINZA};
+
+    [data-testid="stMetricValue"] {{
+        color: {GREEN} !important;
     }}
-    div[data-testid="stMetricValue"] {{
-        color: {VERDE};
+
+    .hero {{
+        background: linear-gradient(115deg, #14263B, #102D32);
+        border: 1px solid #245047;
+        border-radius: 16px;
+        padding: 24px 26px;
+        margin-bottom: 20px;
     }}
-    .subtitulo {{
-        color: {CINZA};
-        font-size: 14px;
+
+    .hero h1 {{
+        color: {WHITE} !important;
+        margin-bottom: 6px;
     }}
-    .secao {{
-        border-left: 4px solid {VERDE};
+
+    .hero p {{
+        color: #D7E3EF;
+        margin-bottom: 0;
+    }}
+
+    .section-title {{
+        color: {WHITE};
+        font-size: 22px;
+        font-weight: 700;
+        border-left: 4px solid {GREEN};
         padding-left: 12px;
-        margin-top: 20px;
+        margin: 22px 0 6px 0;
+    }}
+
+    .section-description {{
+        color: {MUTED};
+        font-size: 14px;
+        margin-bottom: 12px;
+    }}
+
+    div.stButton > button {{
+        border-radius: 8px;
+        border: 1px solid {GREEN};
+    }}
+
+    div[data-testid="stDownloadButton"] button {{
+        border-radius: 8px;
     }}
 </style>
 """, unsafe_allow_html=True)
 
-# Tema consistente para todos os gráficos
-TEMA = dict(
-    paper_bgcolor=PAINEL,
-    plot_bgcolor=PAINEL,
-    font=dict(color=TEXTO, family="Arial"),
-    margin=dict(l=20, r=20, t=55, b=30),
+# Tema dos gráficos
+CHART_THEME = dict(
+    paper_bgcolor=PANEL,
+    plot_bgcolor=PANEL,
+    font=dict(color=WHITE, family="Arial"),
+    margin=dict(l=20, r=20, t=60, b=35),
     legend=dict(
         bgcolor="rgba(0,0,0,0)",
-        font=dict(color=TEXTO)
+        font=dict(color=WHITE),
     ),
 )
 
-st.title("⚽ BRASILEIRÃO ANALYTICS")
-st.markdown(
-    '<p class="subtitulo">'
-    'Dados, desempenho e histórias do Campeonato Brasileiro Série A'
-    '</p>',
-    unsafe_allow_html=True
-)
+def configurar_eixos(fig):
+    fig.update_xaxes(
+        gridcolor=BORDER,
+        zerolinecolor=BORDER,
+        linecolor=BORDER,
+    )
+    fig.update_yaxes(
+        gridcolor=BORDER,
+        zerolinecolor=BORDER,
+        linecolor=BORDER,
+    )
+    fig.update_layout(**CHART_THEME)
+    return fig
 
-# --------------------------------------------------
-# CONEXÃO COM A API
-# --------------------------------------------------
+def titulo_secao(titulo, descricao):
+    st.markdown(
+        f'<div class="section-title">{titulo}</div>'
+        f'<div class="section-description">{descricao}</div>',
+        unsafe_allow_html=True,
+    )
+
+# ==================================================
+# CABEÇALHO
+# ==================================================
+st.markdown("""
+<div class="hero">
+    <h1>⚽ BRASILEIRÃO ANALYTICS</h1>
+    <p>Resultados, desempenho e histórias do Campeonato Brasileiro Série A</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ==================================================
+# API
+# ==================================================
 token = st.secrets.get("FOOTBALL_DATA_TOKEN", "")
 
 if not token:
@@ -129,27 +195,24 @@ def carregar_partidas(temporada, token_api):
     if df.empty:
         return df
 
-    df["Data"] = pd.to_datetime(df["Data"], utc=True).dt.tz_convert(
-        "America/Sao_Paulo"
-    ).dt.tz_localize(None)
+    df["Data"] = (
+        pd.to_datetime(df["Data"], utc=True)
+        .dt.tz_convert("America/Sao_Paulo")
+        .dt.tz_localize(None)
+    )
 
-    df["Rodada"] = pd.to_numeric(df["Rodada"], errors="coerce")
-    df["Gols mandante"] = pd.to_numeric(
-        df["Gols mandante"], errors="coerce"
-    )
-    df["Gols visitante"] = pd.to_numeric(
-        df["Gols visitante"], errors="coerce"
-    )
+    for coluna in ["Rodada", "Gols mandante", "Gols visitante"]:
+        df[coluna] = pd.to_numeric(df[coluna], errors="coerce")
 
     return df
 
 
-# --------------------------------------------------
-# FILTROS GERAIS
-# --------------------------------------------------
+# ==================================================
+# FILTROS SIMPLIFICADOS
+# ==================================================
 with st.sidebar:
-    st.title("🎛️ Filtros")
-    st.caption("Explore diferentes recortes do campeonato.")
+    st.markdown("## 🎛️ Explorar campeonato")
+    st.caption("Escolha o recorte da análise.")
 
     temporada = st.selectbox(
         "Temporada",
@@ -158,29 +221,26 @@ with st.sidebar:
     )
 
 try:
-    with st.spinner("Buscando partidas na API..."):
+    with st.spinner("Carregando partidas..."):
         df = carregar_partidas(temporada, token)
 
 except requests.HTTPError as erro:
     codigo = erro.response.status_code
 
     if codigo == 403:
-        st.error(
-            "Acesso negado pela API. Confira o token e as "
-            "permissões da sua conta."
-        )
+        st.error("Acesso negado. Confira o token e as permissões da API.")
     elif codigo == 429:
-        st.error("Limite de chamadas atingido. Tente novamente mais tarde.")
+        st.error("Limite de consultas atingido. Tente mais tarde.")
     else:
         st.error(f"Erro HTTP {codigo}: {erro}")
     st.stop()
 
 except requests.RequestException as erro:
-    st.error(f"Falha na conexão: {erro}")
+    st.error(f"Falha na conexão com a API: {erro}")
     st.stop()
 
 if df.empty:
-    st.info("Nenhuma partida foi retornada para essa temporada.")
+    st.info("Não foram encontradas partidas para essa temporada.")
     st.stop()
 
 clubes = sorted(
@@ -188,75 +248,71 @@ clubes = sorted(
     set(df["Visitante"].dropna())
 )
 
+rodadas_disponiveis = sorted(
+    df["Rodada"].dropna().astype(int).unique()
+)
+
 with st.sidebar:
-    mandantes = st.multiselect(
+    mandante = st.selectbox(
         "Time mandante",
-        clubes,
-        placeholder="Todos os mandantes",
+        ["Todos os clubes"] + clubes,
     )
 
-    visitantes = st.multiselect(
+    visitante = st.selectbox(
         "Time visitante",
-        clubes,
-        placeholder="Todos os visitantes",
+        ["Todos os clubes"] + clubes,
     )
 
-    rodadas = sorted(df["Rodada"].dropna().astype(int).unique())
-
-    rodadas_escolhidas = st.multiselect(
-        "Rodadas",
-        rodadas,
-        default=rodadas,
-        placeholder="Todas as rodadas",
+    fase = st.radio(
+        "Período do campeonato",
+        [
+            "Campeonato inteiro",
+            "Rodadas iniciais",
+            "Meio do campeonato",
+            "Reta final",
+        ],
     )
 
-    situacoes = sorted(df["Status"].dropna().unique())
+    st.divider()
 
-    status_escolhidos = st.multiselect(
-        "Situação da partida",
-        situacoes,
-        default=["FINISHED"] if "FINISHED" in situacoes else situacoes,
-        format_func=lambda x: {
-            "FINISHED": "Finalizada",
-            "IN_PLAY": "Em andamento",
-            "PAUSED": "Intervalo",
-            "SCHEDULED": "Agendada",
-            "TIMED": "Com horário definido",
-            "POSTPONED": "Adiada",
-            "SUSPENDED": "Suspensa",
-            "CANCELLED": "Cancelada",
-            "AWARDED": "Resultado atribuído",
-        }.get(x, x),
-    )
-
-    if st.button("🔄 Atualizar dados da API", use_container_width=True):
+    if st.button("🔄 Atualizar dados", use_container_width=True):
         carregar_partidas.clear()
         st.rerun()
 
-# --------------------------------------------------
-# APLICAÇÃO DOS FILTROS
-# --------------------------------------------------
+    st.caption("Fonte: football-data.org")
+    st.caption("Cache de 30 minutos")
+
+# ==================================================
+# APLICAR FILTROS
+# ==================================================
 filtrado = df.copy()
 
-if mandantes:
-    filtrado = filtrado[filtrado["Mandante"].isin(mandantes)]
+if mandante != "Todos os clubes":
+    filtrado = filtrado[filtrado["Mandante"] == mandante]
 
-if visitantes:
-    filtrado = filtrado[filtrado["Visitante"].isin(visitantes)]
+if visitante != "Todos os clubes":
+    filtrado = filtrado[filtrado["Visitante"] == visitante]
 
-if rodadas_escolhidas:
+# Divide as rodadas disponíveis em três partes.
+# Isso funciona mesmo quando a temporada ainda está em andamento.
+if rodadas_disponiveis and fase != "Campeonato inteiro":
+    quantidade = len(rodadas_disponiveis)
+    tamanho = max(1, quantidade // 3)
+
+    if fase == "Rodadas iniciais":
+        rodadas_fase = rodadas_disponiveis[:tamanho]
+    elif fase == "Meio do campeonato":
+        inicio = tamanho
+        fim = max(inicio + 1, quantidade - tamanho)
+        rodadas_fase = rodadas_disponiveis[inicio:fim]
+    else:
+        rodadas_fase = rodadas_disponiveis[-tamanho:]
+
     filtrado = filtrado[
-        filtrado["Rodada"].isin(rodadas_escolhidas)
+        filtrado["Rodada"].isin(rodadas_fase)
     ]
-else:
-    filtrado = filtrado.iloc[0:0]
 
-if status_escolhidos:
-    filtrado = filtrado[filtrado["Status"].isin(status_escolhidos)]
-else:
-    filtrado = filtrado.iloc[0:0]
-
-# Jogos com placar válido e finalizado são usados nas estatísticas.
+# Só jogos efetivamente finalizados e com placar completo
 jogos = filtrado[
     (filtrado["Status"] == "FINISHED")
     & filtrado["Gols mandante"].notna()
@@ -265,135 +321,154 @@ jogos = filtrado[
 
 jogos["Gols mandante"] = jogos["Gols mandante"].astype(int)
 jogos["Gols visitante"] = jogos["Gols visitante"].astype(int)
-jogos["Total gols"] = jogos["Gols mandante"] + jogos["Gols visitante"]
+jogos["Total gols"] = (
+    jogos["Gols mandante"] + jogos["Gols visitante"]
+)
 
 jogos["Resultado"] = "Empate"
 jogos.loc[
-    jogos["Gols mandante"] > jogos["Gols visitante"], "Resultado"
+    jogos["Gols mandante"] > jogos["Gols visitante"],
+    "Resultado"
 ] = "Vitória do mandante"
 jogos.loc[
-    jogos["Gols mandante"] < jogos["Gols visitante"], "Resultado"
+    jogos["Gols mandante"] < jogos["Gols visitante"],
+    "Resultado"
 ] = "Vitória do visitante"
 
-# --------------------------------------------------
-# INDICADORES
-# --------------------------------------------------
-st.markdown(
-    '<div class="secao"><h3>📊 O campeonato em números</h3></div>',
-    unsafe_allow_html=True
+# ==================================================
+# RESUMO EXECUTIVO
+# ==================================================
+titulo_secao(
+    "📊 Visão geral",
+    "Indicadores do recorte selecionado. As estatísticas consideram apenas jogos finalizados.",
 )
 
 total_jogos = len(jogos)
 total_gols = int(jogos["Total gols"].sum()) if total_jogos else 0
 media_gols = total_gols / total_jogos if total_jogos else 0
+
 vitorias_casa = (
     int((jogos["Resultado"] == "Vitória do mandante").sum())
     if total_jogos else 0
 )
-pct_casa = vitorias_casa / total_jogos * 100 if total_jogos else 0
+
+pct_casa = (
+    vitorias_casa / total_jogos * 100
+    if total_jogos else 0
+)
+
+vitorias_fora = (
+    int((jogos["Resultado"] == "Vitória do visitante").sum())
+    if total_jogos else 0
+)
+
+pct_fora = (
+    vitorias_fora / total_jogos * 100
+    if total_jogos else 0
+)
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Jogos finalizados", f"{total_jogos:,}".replace(",", "."))
 c2.metric("Gols marcados", f"{total_gols:,}".replace(",", "."))
-c3.metric("Média de gols/jogo", f"{media_gols:.2f}".replace(".", ","))
-c4.metric("Vitórias dos mandantes", f"{pct_casa:.1f}%".replace(".", ","))
+c3.metric("Média de gols / jogo", f"{media_gols:.2f}".replace(".", ","))
+c4.metric("Vitórias em casa", f"{pct_casa:.1f}%".replace(".", ","))
+
+if mandante != "Todos os clubes" or visitante != "Todos os clubes":
+    descricao_mandante = (
+        mandante if mandante != "Todos os clubes" else "qualquer mandante"
+    )
+    descricao_visitante = (
+        visitante if visitante != "Todos os clubes" else "qualquer visitante"
+    )
+    st.caption(
+        f"Confrontos: {descricao_mandante} × {descricao_visitante} "
+        f"· Temporada {temporada} · {fase}"
+    )
+else:
+    st.caption(f"Temporada {temporada} · {fase}")
 
 if total_jogos == 0:
-    st.info(
-        "Não há partidas finalizadas no recorte selecionado. "
-        "Altere os filtros para visualizar as estatísticas."
-    )
+    st.info("Nenhum jogo finalizado nesse recorte. Altere os filtros.")
 
-# --------------------------------------------------
-# STORYTELLING: RESULTADOS E GOLS
-# --------------------------------------------------
-st.markdown(
-    '<div class="secao"><h3>🎯 1. Quem está levando a melhor?</h3></div>',
-    unsafe_allow_html=True
-)
-
-st.caption(
-    "Compare o peso do mando de campo e a distribuição dos resultados "
-    "nas partidas finalizadas do recorte."
+# ==================================================
+# STORY 1 — RESULTADOS E MANDO
+# ==================================================
+titulo_secao(
+    "🏟️ O fator casa faz diferença?",
+    "Compare a distribuição dos resultados e a produção ofensiva dos mandantes e visitantes.",
 )
 
 if total_jogos:
-    a, b = st.columns(2)
+    esquerda, direita = st.columns(2)
 
-    ordem_resultados = [
+    ordem = [
         "Vitória do mandante",
         "Empate",
         "Vitória do visitante",
     ]
 
-    cores_resultados = {
-        "Vitória do mandante": VERDE,
-        "Empate": AMARELO,
-        "Vitória do visitante": AZUL,
-    }
-
     contagem = (
-        jogos["Resultado"]
-        .value_counts()
-        .reindex(ordem_resultados, fill_value=0)
+        jogos["Resultado"].value_counts()
+        .reindex(ordem, fill_value=0)
         .rename_axis("Resultado")
         .reset_index(name="Partidas")
     )
 
-    with a:
+    with esquerda:
         fig = px.pie(
             contagem,
             names="Resultado",
             values="Partidas",
-            hole=0.62,
+            hole=0.64,
             color="Resultado",
-            color_discrete_map=cores_resultados,
-            title="Distribuição dos resultados",
+            color_discrete_map={
+                "Vitória do mandante": GREEN,
+                "Empate": YELLOW,
+                "Vitória do visitante": BLUE,
+            },
+            title="Como terminam as partidas?",
         )
         fig.update_traces(
             textposition="inside",
             textinfo="percent+value",
-            marker=dict(line=dict(color=PAINEL, width=3)),
+            marker=dict(line=dict(color=PANEL, width=3)),
         )
-        fig.update_layout(**TEMA)
+        fig.update_layout(**CHART_THEME)
         st.plotly_chart(fig, use_container_width=True)
 
-    gols_local = jogos["Gols mandante"].sum()
-    gols_visitante = jogos["Gols visitante"].sum()
-
-    with b:
+    with direita:
         fig = go.Figure()
         fig.add_trace(go.Bar(
             x=["Mandantes", "Visitantes"],
-            y=[gols_local, gols_visitante],
-            marker_color=[VERDE, AZUL],
-            text=[int(gols_local), int(gols_visitante)],
+            y=[
+                int(jogos["Gols mandante"].sum()),
+                int(jogos["Gols visitante"].sum()),
+            ],
+            marker_color=[GREEN, BLUE],
+            text=[
+                int(jogos["Gols mandante"].sum()),
+                int(jogos["Gols visitante"].sum()),
+            ],
             textposition="outside",
-            name="Gols",
         ))
         fig.update_layout(
-            title="Quem marcou mais gols?",
+            title="Gols: casa versus fora",
             yaxis_title="Gols marcados",
             showlegend=False,
-            **TEMA,
         )
+        configurar_eixos(fig)
         st.plotly_chart(fig, use_container_width=True)
 
-# --------------------------------------------------
-# STORYTELLING: EVOLUÇÃO POR RODADA
-# --------------------------------------------------
-st.markdown(
-    '<div class="secao"><h3>📈 2. Como os gols evoluem por rodada?</h3></div>',
-    unsafe_allow_html=True
-)
-
-st.caption(
-    "A curva mostra a quantidade de gols nas partidas finalizadas "
-    "de cada rodada, respeitando os filtros selecionados."
+# ==================================================
+# STORY 2 — EVOLUÇÃO POR RODADA
+# ==================================================
+titulo_secao(
+    "📈 Como o campeonato produz gols?",
+    "Veja o volume de gols por rodada e a média por partida.",
 )
 
 if total_jogos and jogos["Rodada"].notna().any():
-    gols_rodada = (
+    por_rodada = (
         jogos.dropna(subset=["Rodada"])
         .groupby("Rodada", as_index=False)
         .agg(
@@ -403,52 +478,48 @@ if total_jogos and jogos["Rodada"].notna().any():
         .sort_values("Rodada")
     )
 
-    gols_rodada["Média de gols"] = (
-        gols_rodada["Gols"] / gols_rodada["Partidas"]
-    )
+    por_rodada["Média"] = por_rodada["Gols"] / por_rodada["Partidas"]
 
     fig = go.Figure()
+
     fig.add_trace(go.Bar(
-        x=gols_rodada["Rodada"],
-        y=gols_rodada["Gols"],
+        x=por_rodada["Rodada"],
+        y=por_rodada["Gols"],
         name="Gols",
-        marker_color=VERDE,
-        opacity=0.85,
+        marker_color=GREEN,
     ))
+
     fig.add_trace(go.Scatter(
-        x=gols_rodada["Rodada"],
-        y=gols_rodada["Média de gols"],
-        name="Média de gols por jogo",
+        x=por_rodada["Rodada"],
+        y=por_rodada["Média"],
+        name="Média por jogo",
         yaxis="y2",
         mode="lines+markers",
-        line=dict(color=AMARELO, width=3),
+        line=dict(color=YELLOW, width=3),
         marker=dict(size=7),
     ))
+
     fig.update_layout(
-        title="Gols e média de gols por rodada",
+        title="Gols e média por rodada",
         xaxis_title="Rodada",
         yaxis=dict(title="Total de gols"),
         yaxis2=dict(
-            title="Média de gols por jogo",
+            title="Média por jogo",
             overlaying="y",
             side="right",
             showgrid=False,
         ),
-        **TEMA,
     )
+
+    configurar_eixos(fig)
     st.plotly_chart(fig, use_container_width=True)
 
-# --------------------------------------------------
-# STORYTELLING: RANKING OFENSIVO
-# --------------------------------------------------
-st.markdown(
-    '<div class="secao"><h3>🔥 3. Quais clubes mais produzem gols?</h3></div>',
-    unsafe_allow_html=True
-)
-
-st.caption(
-    "O ranking soma os gols marcados como mandante e visitante "
-    "nos jogos incluídos no recorte."
+# ==================================================
+# STORY 3 — RANKING DE GOLS
+# ==================================================
+titulo_secao(
+    "🔥 Quem tem o ataque mais produtivo?",
+    "Ranking de gols marcados pelos clubes nas partidas que atendem aos filtros.",
 )
 
 if total_jogos:
@@ -459,7 +530,11 @@ if total_jogos:
         columns={"Visitante": "Clube", "Gols visitante": "Gols"}
     )
 
-    ranking = pd.concat([gols_casa, gols_fora], ignore_index=True)
+    ranking = pd.concat(
+        [gols_casa, gols_fora],
+        ignore_index=True,
+    )
+
     ranking = (
         ranking.groupby("Clube", as_index=False)["Gols"]
         .sum()
@@ -473,29 +548,31 @@ if total_jogos:
         orientation="h",
         text="Gols",
         color="Gols",
-        color_continuous_scale=["#1E3A5F", VERDE],
-        title="Ranking de gols marcados",
+        color_continuous_scale=["#1E3A5F", GREEN],
+        title="Gols marcados por clube",
     )
+
     fig.update_traces(textposition="outside")
     fig.update_layout(
         coloraxis_showscale=False,
-        xaxis_title="Gols",
+        xaxis_title="Gols marcados",
         yaxis_title="",
-        **TEMA,
     )
+
+    configurar_eixos(fig)
     st.plotly_chart(fig, use_container_width=True)
 
-# --------------------------------------------------
+# ==================================================
 # TABELA DE PARTIDAS
-# --------------------------------------------------
-st.markdown(
-    '<div class="secao"><h3>📋 4. Explore os jogos</h3></div>',
-    unsafe_allow_html=True
+# ==================================================
+titulo_secao(
+    "📋 Partidas",
+    "Consulte os placares, pesquise clubes e exporte o recorte para CSV.",
 )
 
 busca = st.text_input(
-    "Pesquisar clube",
-    placeholder="Digite parte do nome do mandante ou visitante...",
+    "Pesquisar mandante ou visitante",
+    placeholder="Ex.: Flamengo, Palmeiras, Grêmio...",
 )
 
 tabela = filtrado.copy()
@@ -507,6 +584,11 @@ if busca.strip():
     )
     tabela = tabela[mascara]
 
+tabela = tabela.sort_values(
+    ["Rodada", "Data"],
+    na_position="last",
+)
+
 tabela["Data"] = tabela["Data"].dt.strftime("%d/%m/%Y %H:%M")
 
 tabela = tabela.rename(columns={
@@ -514,30 +596,32 @@ tabela = tabela.rename(columns={
     "Gols visitante": "Gols fora",
 })
 
-tabela = tabela[
-    [
-        "Data", "Rodada", "Mandante", "Gols casa",
-        "Gols fora", "Visitante", "Status"
-    ]
-].sort_values(["Rodada", "Data"], na_position="last")
+colunas = [
+    "Data",
+    "Rodada",
+    "Mandante",
+    "Gols casa",
+    "Gols fora",
+    "Visitante",
+    "Status",
+]
 
 st.dataframe(
-    tabela,
+    tabela[colunas],
     use_container_width=True,
     hide_index=True,
-    height=450,
+    height=420,
 )
 
-csv = tabela.to_csv(index=False).encode("utf-8-sig")
 st.download_button(
-    "⬇️ Baixar jogos filtrados em CSV",
-    data=csv,
-    file_name=f"brasileirao_{temporada}_jogos.csv",
+    "⬇️ Exportar partidas em CSV",
+    data=tabela[colunas].to_csv(index=False).encode("utf-8-sig"),
+    file_name=f"brasileirao_{temporada}.csv",
     mime="text/csv",
 )
 
-st.markdown("---")
+st.divider()
 st.caption(
     "Fonte: football-data.org · Projeto de portfólio de análise de dados. "
-    "Os indicadores refletem os filtros aplicados e os jogos finalizados."
+    "Estatísticas calculadas sobre os jogos finalizados do recorte selecionado."
 )
