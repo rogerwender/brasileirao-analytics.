@@ -171,7 +171,7 @@ def aplicar_estilo():
         }}
 
         .hero-subtitle {{
-            color: #C3D1E1;
+            color: #FFFFFF;
             font-size: 0.94rem;
             margin-top: 9px;
         }}
