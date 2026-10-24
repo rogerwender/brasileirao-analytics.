@@ -31,7 +31,7 @@ CORES = {
 }
 
 STATUS_FINALIZADOS = {"FINISHED", "AWARDED"}
-TEMPORADAS = [2026, 2025, 2024, 2023, 2022, 2021, 2020]
+TEMPORADAS = [2026, 2025, 2024]
 
 
 # =========================================================
@@ -69,6 +69,20 @@ def aplicar_estilo():
 
         [data-testid="stSidebar"] .block-container {{
             padding-top: 1.4rem;
+        }}
+
+        /* Garante que o título "Filtros" fique branco na barra lateral */
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] h3 span,
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3,
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 span {{
+            color: #FFFFFF !important;
+            opacity: 1 !important;
+        }}
+
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] label span {{
+            color: #FFFFFF !important;
         }}
 
         h1, h2, h3, h4, p, label {{
