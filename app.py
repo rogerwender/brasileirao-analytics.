@@ -80,6 +80,22 @@ def aplicar_estilo():
             opacity: 1 !important;
         }}
 
+        /* Títulos da barra lateral em branco */
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h1 *,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h2 *,
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] h3 *,
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2,
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2 *,
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3,
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 * {
+            color: #FFFFFF !important;
+            opacity: 1 !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+
         [data-testid="stSidebar"] label,
         [data-testid="stSidebar"] label span {{
             color: #FFFFFF !important;
